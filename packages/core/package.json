@@ -1,0 +1,14 @@
+{
+  "name": "@tamly/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Logic lõi: sàng lọc, phát hiện khủng hoảng, guardrail AI, nội dung kỹ năng. TypeScript thuần, không phụ thuộc runtime.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

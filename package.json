@@ -1,0 +1,24 @@
+{
+  "name": "tamly",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nền tảng hỗ trợ sức khỏe tinh thần cho người trẻ Việt Nam – sàng lọc, tự chăm sóc, kết nối con người. Không chẩn đoán, không điều trị.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test -w @tamly/core",
+    "typecheck": "npm run typecheck -w @tamly/core && npm run typecheck -w @tamly/api",
+    "api": "npm run dev -w @tamly/api",
+    "mobile": "npm run start -w mobile",
+    "mobile:web": "npm run web -w mobile"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "@types/node": "^24.0.0"
+  }
+}
