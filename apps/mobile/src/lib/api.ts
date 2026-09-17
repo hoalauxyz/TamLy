@@ -116,6 +116,8 @@ export const api = {
       risk: string;
       usedLLM: boolean;
       analysis?: { intent: string; emotion: string; intensity: string; topics: string[] };
+      situation?: { id: string; label: string; confidence: number };
+      knowledgeIds?: string[];
       quota: { used: number; limit: number; llmAvailable: boolean };
     }>('/v1/chat', { method: 'POST', body: JSON.stringify(body) }),
   chatHistory: (sessionId: string) => request<Array<{ at: string; role: 'user' | 'assistant'; content: string }>>(`/v1/chat/history?sessionId=${encodeURIComponent(sessionId)}`),

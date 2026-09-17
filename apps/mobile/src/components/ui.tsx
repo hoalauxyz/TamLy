@@ -78,9 +78,20 @@ export function HelpNowButton() {
 export function BackToAn() {
   const router = useRouter();
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.replace('/(tabs)')} style={{ marginBottom: spacing(3) }}>
-      <Text style={{ color: colors.primary, fontWeight: '700' }}>← Trò chuyện với An</Text>
+    <Pressable accessibilityRole="button" onPress={() => router.replace('/(tabs)')} style={{ marginBottom: spacing(4) }}>
+      <Text style={{ color: colors.primary, fontWeight: '600', letterSpacing: 0.3, fontSize: 13 }}>← An</Text>
     </Pressable>
+  );
+}
+
+export function PageHeader({ kicker, title, subtitle }: { kicker?: string; title: string; subtitle?: string }) {
+  return (
+    <View style={{ marginBottom: spacing(5) }}>
+      <BackToAn />
+      {kicker ? <Text style={font.caption}>{kicker}</Text> : null}
+      <Text style={[font.title, { marginTop: kicker ? spacing(2) : 0 }]}>{title}</Text>
+      {subtitle ? <Text style={[font.body, { color: colors.textMuted, marginTop: spacing(2) }]}>{subtitle}</Text> : null}
+    </View>
   );
 }
 

@@ -1,16 +1,18 @@
 import { useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PLACEHOLDER_SUPPORT, formatVnd } from '@tamly/core';
-import { Body, Button, Card, HelpNowButton, Small, Title } from '../components/ui';
+import { Body, Button, Card, HelpNowButton, PageHeader, Small } from '../components/ui';
 import { colors, font, spacing } from '../lib/theme';
 
 export default function Experts() {
   const router = useRouter();
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing(4) }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+    <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
+      <PageHeader kicker="Kết nối" title="Người thật" subtitle="Minh họa. Đặt lịch sẽ mở khi đã xác minh giấy phép." />
       <HelpNowButton />
-      <Title>Người thật</Title>
       <Card tone="alt">
         <Body>
           Hai tầng hỗ trợ: người lắng nghe (giá sinh viên) và chuyên gia tham vấn đã xác minh. MVP đang dùng hồ sơ minh họa — chưa mở đặt lịch thật, chưa xác minh giấy phép.
@@ -45,5 +47,6 @@ export default function Experts() {
       <Button title="Cần hỗ trợ ngay (hotline)" variant="warn" onPress={() => router.push('/crisis')} />
       <Small>Khi mở thật: xác minh giấy phép, hợp đồng, và phân biệt rõ tham vấn (không phải khám chữa bệnh) với trị liệu lâm sàng.</Small>
     </ScrollView>
+    </SafeAreaView>
   );
 }

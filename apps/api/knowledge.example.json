@@ -1,0 +1,16 @@
+{
+  "version": "example-1",
+  "documents": [
+    {
+      "id": "example-only",
+      "title": "Mẫu gói đã duyệt",
+      "situations": ["general"],
+      "topics": ["other"],
+      "tags": ["mẫu"],
+      "counsel": "Đây là ví dụ JSON. Chỉ merge khi reviewed=true. Không crawl bài báo, không fine-tune.",
+      "ask": "Bạn muốn kể tiếp chuyện nào?",
+      "source": "Ví dụ nội bộ",
+      "reviewed": true
+    }
+  ]
+}

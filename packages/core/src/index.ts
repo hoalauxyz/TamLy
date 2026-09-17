@@ -25,6 +25,13 @@ export { analyzeIntentByRules, parseIntentJson } from './ai/intent.ts';
 export { runChatTurn } from './ai/pipeline.ts';
 export type { ChatTurnInput, ChatTurnResult, CrisisCard } from './ai/pipeline.ts';
 export type { ScriptedReply, SuggestedAction } from './ai/scripts.ts';
+export { detectSituation } from './ai/situation.ts';
+export type { SituationHit } from './ai/situation.ts';
+
+// Tri thức
+export { KNOWLEDGE_PACK, KNOWLEDGE_PACK_VERSION, SITUATION_LABEL } from './knowledge/pack.ts';
+export type { KnowledgeDoc, SituationId } from './knowledge/pack.ts';
+export { retrieveKnowledge, mergeKnowledge, parseKnowledgePayload, knowledgeStats, formatKnowledgeForPrompt, allKnowledge, resetExtraKnowledge } from './knowledge/retrieve.ts';
 
 // Sàng lọc
 export { PHQ9, GAD7, INSTRUMENTS } from './screening/instruments.ts';

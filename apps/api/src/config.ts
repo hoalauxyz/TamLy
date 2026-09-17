@@ -9,6 +9,7 @@ export interface AppConfig {
   storeCrisisText: boolean;
   chatRetentionDays: number;
   adsEnabled: boolean;
+  knowledgeUrl: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -24,5 +25,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     storeCrisisText: env.STORE_CRISIS_TEXT === '1',
     chatRetentionDays: Number(env.CHAT_RETENTION_DAYS ?? 30),
     adsEnabled: env.ADS_ENABLED !== '0',
+    knowledgeUrl: (env.KNOWLEDGE_URL ?? '').trim(),
   };
 }

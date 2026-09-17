@@ -4,8 +4,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SKILLS, SKILL_CATEGORY_LABELS } from '@tamly/core';
 import type { SkillCategory } from '@tamly/core';
-import { BackToAn, Chip, Disclaimer, HelpNowButton, Small, Title } from '../../components/ui';
-import { colors, radius, spacing } from '../../lib/theme';
+import { PageHeader, Chip, Disclaimer, HelpNowButton, Small } from '../../components/ui';
+import { colors, font, radius, spacing } from '../../lib/theme';
 
 // Nội dung kỹ năng đóng gói sẵn trong app (dùng được offline). Server có cùng dữ liệu tại /v1/skills.
 export default function Skills() {
@@ -17,10 +17,8 @@ export default function Skills() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
-        <BackToAn />
+        <PageHeader kicker="Thư viện" title="Kỹ năng ngắn" subtitle="Hai đến năm phút. Không cần làm đúng." />
         <HelpNowButton />
-        <Title>Kỹ năng ngắn</Title>
-        <Small>Mỗi bài 2–5 phút. Không cần làm đúng, chỉ cần thử.</Small>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: spacing(3), marginHorizontal: -spacing(4) }} contentContainerStyle={{ paddingHorizontal: spacing(4) }}>
           <Chip label="Tất cả" selected={cat === 'all'} onPress={() => setCat('all')} />
           {cats.map((c) => (
@@ -34,10 +32,10 @@ export default function Skills() {
             style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing(4), marginBottom: spacing(3), borderWidth: 1, borderColor: colors.border }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontWeight: '600', fontSize: 16, color: colors.text, flex: 1 }}>{s.title}</Text>
+              <Text style={[font.h2, { flex: 1 }]}>{s.title}</Text>
               <Small>{s.minutes} phút</Small>
             </View>
-            <Text style={{ color: colors.textMuted, marginTop: 4 }}>{s.when}</Text>
+            <Text style={[font.small, { marginTop: 6 }]}>{s.when}</Text>
           </Pressable>
         ))}
         <Disclaimer />

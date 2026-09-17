@@ -67,12 +67,12 @@ export default function RootLayout() {
       >
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="crisis" options={{ presentation: 'modal', title: 'Hỗ trợ ngay' }} />
-        <Stack.Screen name="screening/[instrument]" options={{ title: 'Kiểm tra nhanh' }} />
-        <Stack.Screen name="skill/[id]" options={{ title: 'Kỹ năng' }} />
-        <Stack.Screen name="group/[id]" options={{ title: 'Nhóm' }} />
-        <Stack.Screen name="experts" options={{ title: 'Người thật' }} />
-        <Stack.Screen name="journal" options={{ title: 'Cảm xúc hôm nay' }} />
+        <Stack.Screen name="crisis" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="screening/[instrument]" options={{ headerShown: false }} />
+        <Stack.Screen name="skill/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="group/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="experts" options={{ headerShown: false }} />
+        <Stack.Screen name="journal" options={{ headerShown: false }} />
       </Stack>
       </PhoneShell>
     </SafeAreaProvider>

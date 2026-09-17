@@ -2,6 +2,7 @@ import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import { loadConfig } from './config.ts';
 import { Db } from './db.ts';
+import { refreshKnowledge } from './knowledge.ts';
 import { registerRoutes } from './routes.ts';
 
 const config = loadConfig();
@@ -22,6 +23,13 @@ setInterval(() => {
   const n = db.purgeOldChat(config.chatRetentionDays);
   if (n) app.log.info({ purged: n }, 'purged old chat messages');
 }, 6 * 3_600_000).unref();
+
+if (config.knowledgeUrl) {
+  const pull = () =>
+    refreshKnowledge(config.knowledgeUrl).then((r) => app.log.info(r, 'knowledge refresh'));
+  void pull();
+  setInterval(pull, 6 * 3_600_000).unref();
+}
 
 app.get('/health', async () => ({
   ok: true,

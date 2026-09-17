@@ -14,12 +14,14 @@ import {
   scriptedMoodCheckin,
   scriptedTechnique,
   scriptedUnclear,
-  scriptedVenting,
   scriptedWantingHuman,
 } from './scripts.ts';
 import type { ScriptedReply, SuggestedAction } from './scripts.ts';
 import { AN_SYSTEM_PROMPT, INTENT_PROMPT, PROMPT_VERSION } from './systemPrompt.ts';
 import { buildThreadState, continuityNote, stickAnalysis } from './thread.ts';
+import { detectSituation, type SituationHit } from './situation.ts';
+import { counselReply } from './counsel.ts';
+import { formatKnowledgeForPrompt, retrieveKnowledge } from '../knowledge/retrieve.ts';
 
 /**
  * Pipeline 7 bước cho một lượt chat.
@@ -72,6 +74,8 @@ export interface ChatTurnResult {
   strategy: 'crisis_high' | 'crisis_medium' | 'script' | 'llm' | 'llm_fallback_script';
   risk: CrisisAssessment;
   analysis: IntentAnalysis;
+  situation?: SituationHit;
+  knowledgeIds?: string[];
   guardViolations: GuardViolation[];
   promptVersion: string;
   events: SafetyEvent[];
@@ -103,7 +107,9 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
     });
   }
 
-  const baseAnalysis = stickAnalysis(analyzeIntentByRules(input.text), buildThreadState(input.history, input.text));
+  const thread = buildThreadState(input.history, input.text);
+  const situation = detectSituation(input.text, thread);
+  const baseAnalysis = stickAnalysis(analyzeIntentByRules(input.text), thread);
 
   if (risk.level === 'high') {
     const variant: CrisisCard['variant'] = risk.thirdParty
@@ -121,6 +127,7 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       strategy: 'crisis_high',
       risk,
       analysis: { ...baseAnalysis, intent: 'crisis' },
+      situation,
       guardViolations: [],
     });
   }
@@ -138,6 +145,7 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       strategy: 'crisis_medium',
       risk,
       analysis: baseAnalysis,
+      situation,
       guardViolations: [],
     });
   }
@@ -162,14 +170,26 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
     }
   }
 
-  const thread = buildThreadState(input.history, input.text);
   analysis = stickAnalysis(analysis, thread);
+  const hits = retrieveKnowledge({ text: input.text, situation: situation.id, topics: analysis.topics, limit: 2 });
+  const knowledgeIds = hits.map((h) => h.doc.id);
+
+  function grounded(): ScriptedReply {
+    return counselReply({
+      userText: input.text,
+      analysis,
+      thread,
+      situation,
+      docs: hits.map((h) => h.doc),
+      turnIndex,
+    });
+  }
 
   // [5] Chọn chiến lược: kịch bản là mặc định.
   let scripted: ScriptedReply | null = null;
   switch (analysis.intent) {
     case 'greeting':
-      scripted = thread.turnCount > 0 ? scriptedVenting(analysis, turnIndex, thread, input.text) : scriptedGreeting(turnIndex);
+      scripted = thread.turnCount > 0 ? grounded() : scriptedGreeting(turnIndex);
       break;
     case 'asking_symptoms':
       scripted = scriptedAskingSymptoms();
@@ -181,13 +201,13 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       scripted = scriptedAboutApp(input.text);
       break;
     case 'mood_checkin':
-      scripted = thread.turnCount > 0 ? scriptedVenting(analysis, turnIndex, thread, input.text) : scriptedMoodCheckin(analysis);
+      scripted = thread.turnCount > 0 ? grounded() : scriptedMoodCheckin(analysis);
       break;
     case 'seeking_technique':
       scripted = scriptedTechnique(analysis);
       break;
     default:
-      scripted = null; // venting / unclear -> ưu tiên LLM nếu có
+      scripted = null;
   }
 
   if (scripted && !(input.preferLlmForVenting && llmAvailable && (analysis.intent === 'venting' || analysis.intent === 'unclear' || analysis.intent === 'mood_checkin'))) {
@@ -198,14 +218,14 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       strategy: 'script',
       risk,
       analysis,
+      situation,
+      knowledgeIds,
       guardViolations: [],
     });
   }
 
   if (!llmAvailable) {
-    const s = analysis.intent === 'unclear' && thread.turnCount === 0
-      ? scriptedUnclear(thread)
-      : scriptedVenting(analysis, turnIndex, thread, input.text);
+    const s = analysis.intent === 'unclear' && thread.turnCount === 0 ? scriptedUnclear(thread) : grounded();
     return finish({
       reply: s.text,
       suggestions: s.suggestions,
@@ -213,6 +233,8 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       strategy: 'script',
       risk,
       analysis,
+      situation,
+      knowledgeIds,
       guardViolations: [],
     });
   }
@@ -223,8 +245,11 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       { role: 'system', content: AN_SYSTEM_PROMPT },
       {
         role: 'system',
-        content: continuityNote(thread, analysis),
+        content: continuityNote(thread, analysis) + ` Tình huống: ${situation.label}.`,
       },
+      ...(formatKnowledgeForPrompt(hits)
+        ? [{ role: 'system' as const, content: `Tri thức đã duyệt (RAG, không phải internet sống):\n${formatKnowledgeForPrompt(hits)}` }]
+        : []),
       ...(input.contextSummary && thread.turnCount === 0
         ? [{ role: 'system' as const, content: `Ngữ cảnh dài hạn (không nhắc như đang theo dõi): ${input.contextSummary}` }]
         : []),
@@ -259,12 +284,10 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
           { label: 'Nói với người thật', action: { type: 'open_human_support' } as SuggestedAction },
         ]
       : undefined;
-    return finish({ reply: guard.text, suggestions, usedLLM: true, strategy: 'llm', risk, analysis, guardViolations: guard.violations });
+    return finish({ reply: guard.text, suggestions, usedLLM: true, strategy: 'llm', risk, analysis, situation, knowledgeIds, guardViolations: guard.violations });
   } catch {
-    const s = analysis.intent === 'unclear' && thread.turnCount === 0
-      ? scriptedUnclear(thread)
-      : scriptedVenting(analysis, turnIndex, thread, input.text);
-    return finish({ reply: s.text, suggestions: s.suggestions, usedLLM: false, strategy: 'llm_fallback_script', risk, analysis, guardViolations: [] });
+    const s = analysis.intent === 'unclear' && thread.turnCount === 0 ? scriptedUnclear(thread) : grounded();
+    return finish({ reply: s.text, suggestions: s.suggestions, usedLLM: false, strategy: 'llm_fallback_script', risk, analysis, situation, knowledgeIds, guardViolations: [] });
   }
 
   function finish(partial: Omit<ChatTurnResult, 'promptVersion' | 'events' | 'latencyMs'>): ChatTurnResult {

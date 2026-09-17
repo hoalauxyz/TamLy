@@ -1,8 +1,9 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CRISIS_CARD_COPY, CRISIS_RESOURCES, DEFAULT_GROUPS, GROUP_RULES, preModeratePost } from '@tamly/core';
-import { Body, Button, Card, CrisisCardView, Small } from '../../components/ui';
+import { Body, Button, Card, CrisisCardView, PageHeader, Small } from '../../components/ui';
 import { api } from '../../lib/api';
 import type { Group, Post } from '../../lib/api';
 import { addLocalPost, getLocalPosts } from '../../lib/store';
@@ -118,56 +119,65 @@ export default function GroupScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: spacing(4) }}>
-      <Stack.Screen options={{ title: group?.name ?? 'Nhóm' }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+      <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
+        <PageHeader
+          kicker="Ẩn danh · có kiểm duyệt"
+          title={group?.name ?? 'Nhóm'}
+          subtitle={group?.description ?? 'Đang mở nhóm…'}
+        />
 
-      <Pressable onPress={() => setShowRules(!showRules)} style={{ backgroundColor: colors.chipBg, padding: spacing(2), borderRadius: radius.sm, marginBottom: spacing(3) }}>
-        <Small>Nhóm này được kiểm duyệt trước. Không chia sẻ cách tự hại. {showRules ? '▲' : '▼ Xem quy tắc'}</Small>
-        {showRules && group && (
-          <View style={{ marginTop: spacing(2) }}>
-            {group.rules.map((r, i) => (
-              <Text key={i} style={font.small}>
-                • {r}
-              </Text>
-            ))}
+        <Pressable
+          onPress={() => setShowRules(!showRules)}
+          style={{ backgroundColor: colors.chipBg, padding: spacing(3), borderRadius: radius.md, marginBottom: spacing(3), borderWidth: 1, borderColor: colors.line }}
+        >
+          <Small>Nhóm này được kiểm duyệt trước. Không chia sẻ cách tự hại. {showRules ? '▲' : '▼ Xem quy tắc'}</Small>
+          {showRules && group && (
+            <View style={{ marginTop: spacing(2) }}>
+              {group.rules.map((r, i) => (
+                <Text key={i} style={font.small}>
+                  • {r}
+                </Text>
+              ))}
+            </View>
+          )}
+        </Pressable>
+
+        {showCrisis && (
+          <View style={{ marginBottom: spacing(3) }}>
+            <CrisisCardView card={CRISIS_CARD_COPY.self} resources={CRISIS_RESOURCES} onContinue={() => setShowCrisis(false)} />
+            <Button title="Nói chuyện riêng với An" variant="secondary" onPress={() => router.push('/(tabs)')} style={{ marginTop: spacing(2) }} />
           </View>
         )}
-      </Pressable>
 
-      {showCrisis && (
-        <View style={{ marginBottom: spacing(3) }}>
-          <CrisisCardView card={CRISIS_CARD_COPY.self} resources={CRISIS_RESOURCES} onContinue={() => setShowCrisis(false)} />
-          <Button title="Nói chuyện riêng với An" variant="secondary" onPress={() => router.push('/(tabs)/chat')} style={{ marginTop: spacing(2) }} />
-        </View>
-      )}
-
-      <Card>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Chia sẻ điều bạn đang trải qua… (ẩn danh)"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          maxLength={1500}
-          style={{ minHeight: 80, color: colors.text, fontSize: 15 }}
-        />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(2) }}>
-          <Small>{text.length}/1500</Small>
-          <Button title="Đăng" onPress={submit} disabled={busy || text.trim().length < 5} />
-        </View>
-        {notice && <Body muted>{notice}</Body>}
-      </Card>
-
-      {posts.length === 0 && <Body muted>Chưa có bài nào. Bạn có thể là người đầu tiên.</Body>}
-      {posts.map((p) => (
-        <Card key={p.id}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Small>{p.authorAlias}</Small>
-            <Small>{timeAgo(p.createdAt)}</Small>
+        <Card>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Chia sẻ điều bạn đang trải qua… (ẩn danh)"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            maxLength={1500}
+            style={{ minHeight: 88, color: colors.text, fontSize: 16, lineHeight: 24 }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(2) }}>
+            <Small>{text.length}/1500</Small>
+            <Button title="Đăng" onPress={submit} disabled={busy || text.trim().length < 5} />
           </View>
-          <Text style={[font.body, { marginTop: spacing(2) }]}>{p.content}</Text>
+          {notice && <Body muted>{notice}</Body>}
         </Card>
-      ))}
-    </ScrollView>
+
+        {posts.length === 0 && <Body muted>Chưa có bài nào. Bạn có thể là người đầu tiên.</Body>}
+        {posts.map((p) => (
+          <Card key={p.id}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Small>{p.authorAlias}</Small>
+              <Small>{timeAgo(p.createdAt)}</Small>
+            </View>
+            <Text style={[font.body, { marginTop: spacing(2) }]}>{p.content}</Text>
+          </Card>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }

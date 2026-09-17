@@ -43,6 +43,7 @@ export default function ChatHome() {
   const [speakOn, setSpeakOn] = useState(false);
   const [menu, setMenu] = useState(false);
   const [nick, setNick] = useState('bạn');
+  const [situation, setSituation] = useState<string | null>(null);
   const [crisis, setCrisis] = useState<{ card: CrisisCard; resources: CrisisResource[] } | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const list = useRef<FlatList<Msg>>(null);
@@ -111,6 +112,7 @@ export default function ChatHome() {
           updatedAt: new Date().toISOString(),
         });
       }
+      if (r.situation?.label) setSituation(r.situation.label);
       if (speakOn) speak(r.reply);
       if (r.crisisCard && r.crisisResources) {
         setCrisis({ card: r.crisisCard, resources: r.crisisResources });
@@ -139,6 +141,7 @@ export default function ChatHome() {
           intensity: r.analysis.intensity,
           updatedAt: new Date().toISOString(),
         });
+        if (r.situation?.label) setSituation(r.situation.label);
         if (speakOn) speak(r.reply);
         if (r.crisisCard) {
           setCrisis({ card: r.crisisCard, resources: activeResources() });
@@ -178,6 +181,7 @@ export default function ChatHome() {
     setSessionId(sid);
     setMsgs([]);
     setCrisis(null);
+    setSituation(null);
     await setLocalChat([]);
   }
 
@@ -203,7 +207,7 @@ export default function ChatHome() {
           <AnMark size={36} />
           <View>
             <Text style={[font.h2, { letterSpacing: 0.4 }]}>An</Text>
-            <Text style={font.caption}>{busy ? 'Đang nghe' : 'Luôn ở đây'}</Text>
+            <Text style={font.caption}>{busy ? 'Đang nghe' : situation ?? 'Luôn ở đây'}</Text>
           </View>
         </View>
         {canSpeak() && (

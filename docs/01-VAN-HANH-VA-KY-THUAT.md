@@ -4,7 +4,7 @@ Tài liệu này mô tả **toàn bộ** sản phẩm đúng như code đang ch�
 
 - Phân tích thị trường / pháp lý: `docs/00-TONG-HOP-PHAN-TICH.md`
 - Cách chạy nhanh: `README.md`
-- Cập nhật: 17/09/2026 (bản chat-first)
+- Cập nhật: 17/09/2026 (giao diện editorial + RAG tri thức đã duyệt)
 
 ---
 
@@ -56,6 +56,8 @@ Cách An “ngày càng thông minh” (ba lớp, cố ý tách):
 2. **Học hệ thống (thống kê):** mỗi lượt (trừ crisis cao) ghi `learn_events` **không có content** → admin xem pattern → chỉnh tay kịch bản/prompt.
 3. **Sau này:** bộ dữ liệu đã người + chuyên gia duyệt, host model tại VN, mới được fine-tune. Cho đến lúc đó không có job train tự động.
 
+An **không** tự tải bài nghiên cứu trên mạng để luyện model. Cách đúng: gói `KNOWLEDGE_PACK` (RAG) + `KNOWLEDGE_URL` JSON đã `reviewed: true`. Xem `packages/core/src/knowledge/` và `GET /v1/knowledge`.
+
 ---
 
 ## 3. Cấu trúc repo
@@ -71,18 +73,19 @@ TamLy/
     src/moderation/          Tiền kiểm duyệt bài nhóm
     src/crisis/              Hotline
     src/learn/               Memory + companion plan + học mẫu ẩn danh + AD_POLICY
+    src/knowledge/           Gói tri thức đã duyệt + RAG (không crawl, không fine-tune)
     src/text/                Chuẩn hóa tiếng Việt, teencode
   apps/api/                  Fastify + SQLite (node:sqlite)
-  apps/mobile/               Expo Router (iOS / Android / web), giao diện ~480px
+  apps/mobile/               Expo Router (iOS / Android / web), giao diện ~430px
 ```
 
-Nguyên tắc: **mọi quyết định an toàn nằm ở `packages/core`**, có test (~101). API và app chỉ gọi, không tự bịa logic khủng hoảng.
+Nguyên tắc: **mọi quyết định an toàn nằm ở `packages/core`**, có test. API và app chỉ gọi, không tự bịa logic khủng hoảng.
 
 ---
 
 ## 4. Luồng người dùng (chat là chủ đạo)
 
-Mở app = **trò chuyện với An**. Khung tối đa ~480px (vỏ điện thoại trên web: `PhoneShell` trong `_layout.tsx`). Tab bar **ẩn**. Mọi tính năng khác nằm trong sidebar ☰.
+Mở app = **trò chuyện với An**. Khung tối đa ~430px (vỏ điện thoại trên web: `PhoneShell` trong `_layout.tsx`). Tab bar **ẩn**. Mọi tính năng khác nằm trong sidebar ☰.
 
 ```
 Onboarding → màn An (chat)
@@ -119,11 +122,12 @@ tin nhắn + history (tối đa 24, do client gửi)
   → [2] crisis luật (<5ms)               safety/crisisDetector.ts + crisisRules.ts
         high  → dừng, crisis card, không LLM
   → [3] crisis classifier (nếu có LLM)   có thể nâng none→medium; không được hạ high
-  → [4] intent + emotion                 ai/intent.ts (luật; LLM tinh chỉnh venting/unclear)
+  → [4] intent + emotion + tình huống     ai/intent.ts, ai/situation.ts
   → [5] sinh câu trả lời
-        greeting / hỏi triệu chứng / muốn người thật / kỹ thuật / hỏi app → kịch bản
-        giãi bày / không rõ / check-in → LLM nếu có, không thì kịch bản
-        contextSummary (nhật ký đã rút) được nhét vào prompt hoặc câu nhớ
+        greeting lần đầu / hỏi triệu chứng / muốn người thật / kỹ thuật / hỏi app → kịch bản
+        giãi bày / không rõ / giữa mạch → counselReply (RAG) hoặc LLM + tri thức đã duyệt
+        retrieveKnowledge: 1–2 mục KNOWLEDGE_PACK (+ gói remote reviewed:true)
+        contextSummary (nhật ký đã rút) chỉ nhét lượt đầu, không nhắc như đang theo dõi
   → [6] output guard                     safety/outputGuard.ts
         chặn chẩn đoán, tên thuốc, chi tiết phương pháp, “giữ bí mật”
   → [7] trả lời + sự kiện an toàn        risk, intent, strategy, prompt_version
@@ -196,7 +200,20 @@ Crisis high không ghi `learn_events`.
 
 ### 7.3 Fine-tune sau này (chưa code)
 
-Chỉ khi: (a) có cố vấn lâm sàng, (b) mẫu đã gán nhãn + khử PII, (c) host model trong nước, (d) không gồm hội thoại crisis. Cho đến lúc đó, “học” = memory + pattern + chỉnh tay kịch bản + (sau này) RAG trên tài liệu tâm lý đã duyệt.
+Chỉ khi: (a) có cố vấn lâm sàng, (b) mẫu đã gán nhãn + khử PII, (c) host model trong nước, (d) không gồm hội thoại crisis. Cho đến lúc đó **không** có job train tự động.
+
+### 7.4 Tri thức đã duyệt (RAG — đang chạy)
+
+An **không** tự tải bài báo hay PDF trên mạng để luyện model. Cách đúng, đã có trong code:
+
+1. Gói đóng sẵn `KNOWLEDGE_PACK` (`packages/core/src/knowledge/pack.ts`) — nguyên lý tự chăm sóc viết lại bằng lời đời thường, `reviewed: true`.
+2. `detectSituation` gắn tin nhắn vào một tình huống (thi, nhà, việc, chia tay…).
+3. `retrieveKnowledge` lấy 1–2 mục khớp tình huống + từ khóa.
+4. Không LLM: `counselReply` nói lại lời người dùng + một ý từ tài liệu + một câu hỏi đúng tình huống.
+5. Có LLM: cùng gói được nhét vào system prompt (`Tri thức đã duyệt`), An diễn đạt lại, không đọc như sách, không bịa nghiên cứu.
+6. Cập nhật thêm: đặt `KNOWLEDGE_URL` trỏ JSON `{ documents: [...] }` với `reviewed: true`. API kéo lúc khởi động và mỗi 6 giờ. `POST /v1/admin/knowledge/refresh`. Mục chưa `reviewed: true` bị bỏ. Không crawl, không ghi đè gói đóng sẵn.
+
+Xem `GET /v1/knowledge`, `apps/api/knowledge.example.json`.
 
 ---
 
@@ -235,16 +252,18 @@ Base: `http://localhost:3000`. Mọi `/v1/*` (trừ health, ads, skills, crisis-
 | GET | `/v1/me/export` | xuất dữ liệu (chat = []) |
 | POST/GET | `/v1/checkins` | check-in |
 | POST/GET | `/v1/screenings` | sàng lọc |
-| POST | `/v1/chat` | một lượt An. Body: `{ sessionId, message, acknowledgedCrisis?, history? }`. Trả `reply`, `suggestions`, `analysis`, `quota` (`limit: 0` = không giới hạn) |
+| POST | `/v1/chat` | một lượt An. Body: `{ sessionId, message, acknowledgedCrisis?, history? }`. Trả `reply`, `suggestions`, `analysis`, `situation`, `knowledgeIds`, `quota` (`limit: 0` = không giới hạn) |
 | GET | `/v1/chat/history` | **luôn `[]`** — lịch sử chỉ trên máy |
 | GET | `/v1/crisis-resources` | hotline |
 | GET | `/v1/skills` | thư viện |
+| GET | `/v1/knowledge` | thống kê gói tri thức (bundled + extra + version) |
 | GET | `/v1/support` | người hỗ trợ (minh họa) |
 | GET | `/v1/ads` | cấu hình banner + `AD_POLICY` |
 | GET/POST | `/v1/groups…` | nhóm + đăng bài |
 | GET | `/v1/admin/safety-events` | Safety Ops |
 | GET | `/v1/admin/learn/patterns` | pattern học |
 | GET | `/v1/admin/metrics` | KPI 7 ngày |
+| POST | `/v1/admin/knowledge/refresh` | kéo lại `KNOWLEDGE_URL` |
 
 Admin: `x-admin-token`. Token mặc định `change-me` → 403 (bắt đổi).
 
@@ -256,16 +275,16 @@ Admin: `x-admin-token`. Token mặc định `change-me` → 403 (bắt đổi).
 
 | File | Việc |
 |---|---|
-| `_layout.tsx` | Onboarding gate + `PhoneShell` maxWidth 480 |
+| `_layout.tsx` | Onboarding gate + `PhoneShell` maxWidth 430 |
 | `(tabs)/_layout.tsx` | `tabBarStyle: display none`; tab phụ `href: null` |
-| `(tabs)/index.tsx` | **Màn chính = chat An** (hamburger, avatar 🌿, mic, loa, gửi) |
+| `(tabs)/index.tsx` | **Màn chính = chat An** (hamburger, AnMark, mic, loa, gửi; caption hiện tình huống) |
 | `(tabs)/chat.tsx` | Redirect về `/(tabs)` |
 | `components/Sidebar.tsx` | Overlay menu ẩn |
 | `lib/voice.ts` | STT/TTS web `vi-VN` |
 | `journal.tsx` | Check-in (cũ là trang chủ) |
 | `onboarding.tsx` | 3 slide + biệt danh; consent LLM mặc định bật |
 | `experts.tsx` | `PLACEHOLDER_SUPPORT`, nút đặt lịch disabled |
-| `components/ui.tsx` | `BackToAn`, `AdBanner` (web only), `CrisisCardView`, `Disclaimer` |
+| `components/ui.tsx` | `PageHeader`, `BackToAn`, `AdBanner` (web only), `CrisisCardView`, `Disclaimer` |
 
 Local-first: AsyncStorage. Chat/nhóm/sàng lọc chạy được khi API chết.
 
@@ -307,6 +326,7 @@ Xem `apps/api/.env.example`.
 | `STORE_CRISIS_TEXT` | 0 | lưu nguyên văn crisis |
 | `CHAT_RETENTION_DAYS` | 30 | dọn hàng `chat_messages` cũ (API không còn ghi transcript) |
 | `ADS_ENABLED` | 1 | banner web ngoài khung chat |
+| `KNOWLEDGE_URL` | trống | JSON gói tri thức đã duyệt (`reviewed: true`); kéo mỗi 6 giờ |
 
 ---
 
@@ -314,7 +334,7 @@ Xem `apps/api/.env.example`.
 
 ```bash
 npm install          # Node ≥ 22.12
-npm test             # packages/core (node:test) — ~101 test
+npm test             # packages/core (node:test)
 npm run typecheck
 npm run api          # :3000
 npm run mobile:web   # :8081 (Expo)
@@ -344,8 +364,7 @@ Giọng nói native: thay `lib/voice.ts` (hiện Web Speech). Đừng đưa audi
 - Moderators nhóm (SV tâm lý).
 - Pixel/SDK quảng cáo thật (khi có: page-level only, không mood targeting).
 - STT native (iOS/Android).
-- RAG trên tài liệu tâm lý đã duyệt (không train trên chat thô).
-- Fine-tune in-country.
+- Fine-tune in-country trên bộ mẫu đã duyệt (không chat thô, không crisis).
 - Điều khoản / privacy URL thật (hiện example.com).
 
 ---
@@ -354,14 +373,16 @@ Giọng nói native: thay `lib/voice.ts` (hiện Web Speech). Đừng đưa audi
 
 | Muốn hiểu | Mở |
 |---|---|
-| An trả lời thế nào | `packages/core/src/ai/pipeline.ts`, `scripts.ts`, `systemPrompt.ts` |
+| An trả lời thế nào | `packages/core/src/ai/pipeline.ts`, `counsel.ts`, `scripts.ts`, `systemPrompt.ts` |
 | Làm sao phát hiện khủng hoảng | `safety/crisisDetector.ts`, `crisisRules.ts` |
 | Chat là màn chính | `apps/mobile/src/app/(tabs)/index.tsx`, `Sidebar.tsx`, `(tabs)/_layout.tsx` |
 | Giọng nói | `apps/mobile/src/lib/voice.ts` |
 | An nhớ mạch hội thoại | `ai/thread.ts` (`buildThreadState`, `stickAnalysis`) — bám chủ đề, không hỏi lại, nhắc lời vừa nói |
+| An nhận tình huống / tư vấn có căn | `ai/situation.ts`, `ai/counsel.ts`, `knowledge/pack.ts`, `knowledge/retrieve.ts` |
 | An nhớ / lập gợi ý | `learn/memory.ts` (`buildContextSummary`, `buildCompanionPlan`), `lib/store.ts` |
 | Vì sao server không có lịch sử chat | `apps/api/src/routes.ts` POST `/v1/chat` (comment “Không lưu nguyên văn”); GET history trả `[]` |
 | An “học” hệ thống | bảng `learn_events`, `GET /v1/admin/learn/patterns` |
+| An cập nhật tài liệu | `KNOWLEDGE_URL` + `POST /v1/admin/knowledge/refresh` — chỉ JSON `reviewed:true` |
 | Vì sao không train trên chat thô | mục 2 và 7.3 tài liệu này |
 | Quảng cáo | `AD_POLICY` trong `learn/memory.ts`, `AdBanner` trong `components/ui.tsx` |
 | Schema | `apps/api/src/db.ts` |

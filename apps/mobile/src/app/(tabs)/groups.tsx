@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DEFAULT_GROUPS, GROUP_RULES } from '@tamly/core';
-import { BackToAn, Body, Card, Disclaimer, HelpNowButton, Small, Title } from '../../components/ui';
+import { Body, Card, Disclaimer, HelpNowButton, PageHeader, Small } from '../../components/ui';
 import { api } from '../../lib/api';
 import type { Group } from '../../lib/api';
 import { colors, radius, spacing } from '../../lib/theme';
@@ -42,9 +42,8 @@ export default function Groups() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
-        <BackToAn />
+        <PageHeader kicker="Cộng đồng" title="Nhóm chia sẻ" subtitle="Theo hoàn cảnh sống, ẩn danh, có kiểm duyệt." />
         <HelpNowButton />
-        <Title>Nhóm chia sẻ</Title>
         <Card tone="alt">
           <Small>
             Nhóm theo hoàn cảnh, không theo “bệnh”. Bài viết ẩn danh và được kiểm duyệt trước khi hiện. Không mô tả cách tự hại, không chẩn đoán nhau, không chia sẻ thông tin

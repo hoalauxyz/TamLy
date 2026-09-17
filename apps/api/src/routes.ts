@@ -15,10 +15,14 @@ import {
   SKILLS,
   SKILL_CATEGORY_LABELS,
   toLearnEvent,
+  knowledgeStats,
+  mergeKnowledge,
+  parseKnowledgePayload,
 } from '@tamly/core';
 import type { ChatMessage, InstrumentId, LLMProvider, Topic } from '@tamly/core';
 import type { AppConfig } from './config.ts';
 import type { Db } from './db.ts';
+import { refreshKnowledge } from './knowledge.ts';
 
 /**
  * XÁC THỰC (MVP): header `x-user-id` là pseudonymous id do client tạo (UUID) và lưu local.
@@ -247,6 +251,8 @@ export function registerRoutes(app: FastifyInstance, db: Db, config: AppConfig):
       risk: result.risk.level,
       usedLLM: result.usedLLM,
       analysis: { intent: result.analysis.intent, emotion: result.analysis.emotion, intensity: result.analysis.intensity, topics: result.analysis.topics },
+      situation: result.situation,
+      knowledgeIds: result.knowledgeIds,
       quota: { used: quota + 1, limit: unlimited ? 0 : config.chatDailyLimit, llmAvailable: !!provider && !config.llmDisabled && !!user.consent_llm && !overQuota },
     };
   });
@@ -263,6 +269,11 @@ export function registerRoutes(app: FastifyInstance, db: Db, config: AppConfig):
   app.get('/v1/skills', async () => ({ categories: SKILL_CATEGORY_LABELS, skills: SKILLS }));
 
   app.get('/v1/support', async () => ({ people: PLACEHOLDER_SUPPORT, note: 'placeholder' }));
+
+  app.get('/v1/knowledge', async () => ({
+    ...knowledgeStats(),
+    note: 'Gói nội bộ đã duyệt. Cập nhật thêm qua KNOWLEDGE_URL (JSON reviewed:true), không crawl bài báo, không train trên chat.',
+  }));
 
   app.get('/v1/ads', async () => ({
     enabled: config.adsEnabled,
@@ -392,5 +403,11 @@ export function registerRoutes(app: FastifyInstance, db: Db, config: AppConfig):
       }),
     );
     return { windowDays: 30, n: events.length, patterns: aggregatePatterns(events) };
+  });
+
+  app.post('/v1/admin/knowledge/refresh', async (req, reply) => {
+    if (!requireAdmin(req, reply, config)) return;
+    const r = await refreshKnowledge(config.knowledgeUrl);
+    return { ...knowledgeStats(), ...r };
   });
 }

@@ -209,6 +209,14 @@ describe('chat pipeline', () => {
     assert.doesNotMatch(r.reply, /^Chào bạn|^Hi\./);
     assert.doesNotMatch(r.reply, /Check-in \d+ ngày/);
   });
+
+  it('grounds exam stress in reviewed knowledge without diagnosing', async () => {
+    const r = await runChatTurn({ ...base, text: 'học mãi không vào, thi gần quá, tim đập' });
+    assert.equal(r.situation?.id, 'exam_stress');
+    assert.ok((r.knowledgeIds ?? []).length >= 1);
+    assert.doesNotMatch(r.reply, /trầm cảm|chẩn đoán|rối loạn lo âu/);
+    assert.match(r.reply, /thi|học|bài|thở/i);
+  });
 });
 
 describe('content packs', () => {

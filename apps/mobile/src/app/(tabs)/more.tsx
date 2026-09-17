@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AdBanner, BackToAn, Body, Button, Card, H2, HelpNowButton, Small, Title } from '../../components/ui';
+import { AdBanner, Body, Button, Card, H2, HelpNowButton, PageHeader, Small } from '../../components/ui';
 import { api } from '../../lib/api';
 import { getConsentLlm, getNickname, setConsentLlm, wipeLocalData } from '../../lib/store';
 import { colors, font, spacing } from '../../lib/theme';
@@ -59,9 +59,8 @@ export default function More() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
-        <BackToAn />
+        <PageHeader kicker="Cài đặt" title={nick || 'Bạn'} subtitle="Người thật, dữ liệu, quyền riêng tư." />
         <HelpNowButton />
-        <Title>Xin chào, {nick}</Title>
 
         <H2>Người thật</H2>
         <Card>

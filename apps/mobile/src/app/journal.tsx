@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BackToAn, Body, Button, Card, Chip, Disclaimer, H2, HelpNowButton, Small, AdBanner } from '../components/ui';
+import { Body, Button, Card, Chip, Disclaimer, H2, HelpNowButton, PageHeader, Small, AdBanner } from '../components/ui';
 import { describeMoodTrend } from '@tamly/core';
 import { api } from '../lib/api';
 import { addLocalCheckin, getLocalCheckins, getNickname } from '../lib/store';
@@ -104,10 +104,8 @@ export default function Journal() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing(4) }}>
-        <BackToAn />
+        <PageHeader kicker={greeting()} title={`${nick}, hôm nay thế nào?`} subtitle="Một nhịp nhỏ, không phải báo cáo." />
         <HelpNowButton />
-        <Text style={font.small}>{greeting()}</Text>
-        <Text style={[font.title, { marginBottom: spacing(4) }]}>{nick}, hôm nay bạn thế nào?</Text>
 
         {!doneToday ? (
           <Card>
