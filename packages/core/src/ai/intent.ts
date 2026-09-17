@@ -27,7 +27,7 @@ const EMOTION_PATTERNS: Array<{ emotion: Emotion; re: RegExp }> = [
 ];
 
 const TOPIC_PATTERNS: Array<{ topic: Topic; re: RegExp }> = [
-  { topic: 'study', re: /\b(?:hoc|thi|diem|bai|truong|lop|giao vien|thay|co giao|dai hoc|de tai|do an|luan van|tot nghiep|hoc bong|on thi|thi lai|no mon|gpa|thpt|dh|ky thi)\b/ },
+  { topic: 'study', re: /\b(?:hoc|thi|diem|bai|truong|lop|giao vien|thay|co giao|dai hoc|de tai|do an|luan van|tot nghiep|hoc bong|on thi|thi lai|no mon|gpa|thpt|dh|ky thi|toan|ly|hoa|van)\b/ },
   { topic: 'work', re: /\b(?:lam|cong viec|viec|sep|dong nghiep|cong ty|luong|deadline|ot|tang ca|thuc tap|xin viec|phong van|nghi viec|bi duoi|kpi|thu viec|nghe)\b/ },
   { topic: 'family', re: /\b(?:bo|me|ba|ma|cha|gia dinh|nha|anh chi|em|ong ba|bo me|ba me|phu huynh|ho hang|ky vong|so sanh|con nha nguoi ta|ve que|ve nha)\b/ },
   { topic: 'relationship', re: /\b(?:nguoi yeu|ny|yeu|chia tay|crush|hen ho|tinh cam|tinh yeu|phan boi|cam sung|ghen|nho|ex|nguoi cu|to tinh|bi tu choi)\b/ },

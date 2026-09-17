@@ -30,7 +30,7 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const bg = variant === 'primary' ? colors.primary : variant === 'warn' ? colors.warn : variant === 'secondary' ? colors.primarySoft : 'transparent';
-  const fg = variant === 'primary' || variant === 'warn' ? '#fff' : colors.primary;
+  const fg = variant === 'primary' || variant === 'warn' ? '#F6F1E8' : colors.primary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -69,7 +69,7 @@ export function HelpNowButton() {
   const router = useRouter();
   return (
     <Pressable accessibilityRole="button" onPress={() => router.push('/crisis')} style={styles.helpNow}>
-      <Text style={{ color: '#fff', fontWeight: '700' }}>Cần hỗ trợ ngay</Text>
+      <Text style={{ color: colors.warn, fontWeight: '600', letterSpacing: 0.4, fontSize: 13 }}>Cần hỗ trợ ngay</Text>
     </Pressable>
   );
 }
@@ -149,11 +149,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing(3),
   },
-  btn: { paddingVertical: spacing(3), paddingHorizontal: spacing(4), borderRadius: radius.pill, alignItems: 'center' },
-  btnText: { fontWeight: '600', fontSize: 15 },
+  btn: { paddingVertical: 14, paddingHorizontal: spacing(4), borderRadius: radius.pill, alignItems: 'center' },
+  btnText: { fontWeight: '600', fontSize: 15, letterSpacing: 0.2 },
   chip: {
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: radius.pill,
     backgroundColor: colors.chipBg,
     borderWidth: 1,
@@ -163,9 +163,11 @@ const styles = StyleSheet.create({
   },
   helpNow: {
     alignSelf: 'flex-end',
-    backgroundColor: colors.warn,
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.warn,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: radius.pill,
     marginBottom: spacing(3),
   },

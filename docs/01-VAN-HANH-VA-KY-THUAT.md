@@ -252,7 +252,7 @@ Admin: `x-admin-token`. Token mặc định `change-me` → 403 (bắt đổi).
 
 ## 10. App (Expo) — UI/UX
 
-`apps/mobile/src/app/` — file-based routing. Cảm giác: **ấm, hiện đại, như một người bạn** — nền be `#F4EFE6`, chữ nâu, nhấn xanh lá dịu, khẩn cấp cam đất (không đỏ chói). Bảng màu: `lib/theme.ts`.
+`apps/mobile/src/app/` — file-based routing. Cảm giác: **ấm, tĩnh, editorial**. Nền ngà `#F6F1E8`, chữ rừng sâu `#2F4A3E`, tiêu đề serif, không mint phẳng, không emoji trang trí. Composer nổi như thanh tin nhắn. Empty state: chào serif + 3 gợi ý dạng thẻ.
 
 | File | Việc |
 |---|---|
@@ -358,6 +358,7 @@ Giọng nói native: thay `lib/voice.ts` (hiện Web Speech). Đừng đưa audi
 | Làm sao phát hiện khủng hoảng | `safety/crisisDetector.ts`, `crisisRules.ts` |
 | Chat là màn chính | `apps/mobile/src/app/(tabs)/index.tsx`, `Sidebar.tsx`, `(tabs)/_layout.tsx` |
 | Giọng nói | `apps/mobile/src/lib/voice.ts` |
+| An nhớ mạch hội thoại | `ai/thread.ts` (`buildThreadState`, `stickAnalysis`) — bám chủ đề, không hỏi lại, nhắc lời vừa nói |
 | An nhớ / lập gợi ý | `learn/memory.ts` (`buildContextSummary`, `buildCompanionPlan`), `lib/store.ts` |
 | Vì sao server không có lịch sử chat | `apps/api/src/routes.ts` POST `/v1/chat` (comment “Không lưu nguyên văn”); GET history trả `[]` |
 | An “học” hệ thống | bảng `learn_events`, `GET /v1/admin/learn/patterns` |

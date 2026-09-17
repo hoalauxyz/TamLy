@@ -2,13 +2,13 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { activeResources, buildCompanionPlan, buildContextSummary, runChatTurn } from '@tamly/core';
-import type { CompanionPlan, CrisisCard, CrisisResource, ScriptedReply, SuggestedAction } from '@tamly/core';
-import { Chip, CrisisCardView } from '../../components/ui';
+import { activeResources, buildContextSummary, runChatTurn } from '@tamly/core';
+import type { CrisisCard, CrisisResource, ScriptedReply, SuggestedAction } from '@tamly/core';
+import { CrisisCardView } from '../../components/ui';
+import { AnMark, IconButton, MenuIcon } from '../../components/Icons';
 import { Sidebar } from '../../components/Sidebar';
 import { api, ApiError } from '../../lib/api';
 import {
-  getCompanionMemory,
   getLocalChat,
   getLocalCheckins,
   getNickname,
@@ -18,7 +18,7 @@ import {
   setLocalChat,
 } from '../../lib/store';
 import { canListen, canSpeak, speak, startListening, stopListening, stopSpeaking } from '../../lib/voice';
-import { colors, font, radius, spacing } from '../../lib/theme';
+import { colors, font, radius, shadowFloat, shadowSoft, spacing } from '../../lib/theme';
 
 interface Msg {
   id: string;
@@ -27,7 +27,11 @@ interface Msg {
   suggestions?: ScriptedReply['suggestions'];
 }
 
-const OPENERS = ['Mình đang lo', 'Hôm nay mệt quá', 'Kể với mình một chút', 'Muốn thở một chút'];
+const OPENERS = [
+  { k: 'study', t: 'Áp lực học đang đè' },
+  { k: 'tired', t: 'Mệt mà không gọi được tên' },
+  { k: 'home', t: 'Muốn kể chuyện nhà' },
+];
 
 export default function ChatHome() {
   const router = useRouter();
@@ -39,16 +43,12 @@ export default function ChatHome() {
   const [speakOn, setSpeakOn] = useState(false);
   const [menu, setMenu] = useState(false);
   const [nick, setNick] = useState('bạn');
-  const [plan, setPlan] = useState<CompanionPlan | null>(null);
   const [crisis, setCrisis] = useState<{ card: CrisisCard; resources: CrisisResource[] } | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const list = useRef<FlatList<Msg>>(null);
 
   useEffect(() => {
     getNickname().then(setNick);
-    getCompanionMemory().then((m) => {
-      if (m) setPlan(buildCompanionPlan(m));
-    });
     getOrCreateSessionId().then(async (sid) => {
       setSessionId(sid);
       const local = await getLocalChat();
@@ -104,9 +104,12 @@ export default function ChatHome() {
       setMsgs(all);
       await setLocalChat(all);
       if (r.analysis) {
-        const mem = { emotion: r.analysis.emotion, topics: r.analysis.topics, intensity: r.analysis.intensity, updatedAt: new Date().toISOString() };
-        await setCompanionMemory(mem);
-        setPlan(buildCompanionPlan(mem));
+        await setCompanionMemory({
+          emotion: r.analysis.emotion,
+          topics: r.analysis.topics,
+          intensity: r.analysis.intensity,
+          updatedAt: new Date().toISOString(),
+        });
       }
       if (speakOn) speak(r.reply);
       if (r.crisisCard && r.crisisResources) {
@@ -130,9 +133,12 @@ export default function ChatHome() {
         const all = [...nextMsgs, assistant];
         setMsgs(all);
         await setLocalChat(all);
-        const mem = { emotion: r.analysis.emotion, topics: r.analysis.topics, intensity: r.analysis.intensity, updatedAt: new Date().toISOString() };
-        await setCompanionMemory(mem);
-        setPlan(buildCompanionPlan(mem));
+        await setCompanionMemory({
+          emotion: r.analysis.emotion,
+          topics: r.analysis.topics,
+          intensity: r.analysis.intensity,
+          updatedAt: new Date().toISOString(),
+        });
         if (speakOn) speak(r.reply);
         if (r.crisisCard) {
           setCrisis({ card: r.crisisCard, resources: activeResources() });
@@ -172,7 +178,6 @@ export default function ChatHome() {
     setSessionId(sid);
     setMsgs([]);
     setCrisis(null);
-    setPlan(null);
     await setLocalChat([]);
   }
 
@@ -180,28 +185,40 @@ export default function ChatHome() {
   const hello = hour < 11 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, width: '100%', maxWidth: 480, alignSelf: 'center' }} edges={['top']}>
-      <View style={{ paddingHorizontal: spacing(3), paddingTop: spacing(1), paddingBottom: spacing(2), flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
-        <Pressable onPress={() => setMenu(true)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 18, color: colors.text }}>☰</Text>
-        </Pressable>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 18 }}>🌿</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[font.h2, { marginBottom: 0 }]}>An</Text>
-          <Text style={font.small}>{busy ? 'Đang nghe…' : 'Bạn của bạn'}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+      <View
+        style={{
+          paddingHorizontal: spacing(4),
+          paddingVertical: spacing(2),
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderBottomWidth: 1,
+          borderBottomColor: colors.line,
+        }}
+      >
+        <IconButton onPress={() => setMenu(true)}>
+          <MenuIcon />
+        </IconButton>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing(2), marginLeft: spacing(1) }}>
+          <AnMark size={36} />
+          <View>
+            <Text style={[font.h2, { letterSpacing: 0.4 }]}>An</Text>
+            <Text style={font.caption}>{busy ? 'Đang nghe' : 'Luôn ở đây'}</Text>
+          </View>
         </View>
         {canSpeak() && (
-          <Pressable onPress={() => setSpeakOn(!speakOn)} style={{ padding: spacing(2) }}>
-            <Text style={{ fontSize: 18 }}>{speakOn ? '🔊' : '🔈'}</Text>
-          </Pressable>
+          <IconButton onPress={() => setSpeakOn(!speakOn)} dim={!speakOn}>
+            <Text style={{ color: colors.ink, fontSize: 13, fontWeight: '600' }}>{speakOn ? 'On' : 'Âm'}</Text>
+          </IconButton>
         )}
-        <Pressable onPress={newSession} style={{ padding: spacing(2) }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Mới</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/crisis')} style={{ backgroundColor: colors.warn, paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.pill }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>🆘</Text>
+        <IconButton onPress={newSession}>
+          <Text style={{ color: colors.textMuted, fontSize: 20, lineHeight: 22, marginTop: -2 }}>+</Text>
+        </IconButton>
+        <Pressable
+          onPress={() => router.push('/crisis')}
+          style={{ marginLeft: spacing(1), paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.warn }}
+        >
+          <Text style={{ color: colors.warn, fontSize: 11, fontWeight: '600', letterSpacing: 0.8 }}>HỖ TRỢ</Text>
         </Pressable>
       </View>
 
@@ -210,43 +227,77 @@ export default function ChatHome() {
           ref={list}
           data={msgs}
           keyExtractor={(m) => m.id}
-          contentContainerStyle={{ padding: spacing(4), gap: spacing(3), flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing(4), paddingTop: spacing(6), paddingBottom: spacing(3), gap: spacing(4), flexGrow: 1 }}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
-            <View style={{ flex: 1, justifyContent: 'center', paddingTop: spacing(10) }}>
-              <Text style={[font.title, { textAlign: 'center' }]}>{hello}, {nick}.</Text>
-              <Text style={[font.body, { textAlign: 'center', color: colors.textMuted, marginTop: spacing(2) }]}>
-                Mình là An. Kể gì cũng được — lo, mệt, vui, trống. Mình nghe như một người bạn.
+            <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: spacing(8) }}>
+              <Text style={font.caption}>Lắng</Text>
+              <Text style={[font.display, { marginTop: spacing(3) }]}>
+                {hello},{'\n'}
+                {nick}.
               </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing(5) }}>
+              <Text style={[font.body, { color: colors.textMuted, marginTop: spacing(3), maxWidth: 320 }]}>
+                Kể chậm cũng được. Mình nhớ chuyện bạn đang nói — không cần bắt đầu lại.
+              </Text>
+              <View style={{ marginTop: spacing(8), gap: spacing(2) }}>
                 {OPENERS.map((o) => (
-                  <Chip key={o} label={o} onPress={() => send(o)} />
+                  <Pressable
+                    key={o.k}
+                    onPress={() => send(o.t)}
+                    style={({ pressed }) => [
+                      {
+                        paddingVertical: spacing(3),
+                        paddingHorizontal: spacing(4),
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        borderColor: colors.line,
+                        backgroundColor: pressed ? colors.primarySoft : colors.bgElevated,
+                      },
+                    ]}
+                  >
+                    <Text style={[font.body, { fontSize: 15 }]}>{o.t}</Text>
+                  </Pressable>
                 ))}
               </View>
             </View>
           }
           renderItem={({ item }) => (
-            <View>
+            <View style={{ alignItems: item.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              {item.role === 'assistant' && (
+                <Text style={[font.caption, { marginBottom: spacing(1), marginLeft: 4 }]}>An</Text>
+              )}
               <View
-                style={{
-                  alignSelf: item.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '88%',
-                  backgroundColor: item.role === 'user' ? colors.userBubble : colors.botBubble,
-                  paddingVertical: spacing(3),
-                  paddingHorizontal: spacing(4),
-                  borderRadius: item.role === 'user' ? 22 : 22,
-                  borderBottomRightRadius: item.role === 'user' ? 6 : 22,
-                  borderBottomLeftRadius: item.role === 'user' ? 22 : 6,
-                  borderWidth: item.role === 'user' ? 0 : 1,
-                  borderColor: colors.border,
-                }}
+                style={[
+                  {
+                    maxWidth: '86%',
+                    paddingVertical: spacing(3),
+                    paddingHorizontal: spacing(4),
+                    borderRadius: 22,
+                  },
+                  item.role === 'user'
+                    ? { backgroundColor: colors.userBubble, borderBottomRightRadius: 6 }
+                    : [{ backgroundColor: colors.botBubble, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.line }, shadowSoft],
+                ]}
               >
-                <Text style={[font.body, { color: item.role === 'user' ? '#fff' : colors.text, lineHeight: 23 }]}>{item.content}</Text>
+                <Text style={[font.body, { color: item.role === 'user' ? '#F6F1E8' : colors.ink, fontSize: 16, lineHeight: 24 }]}>{item.content}</Text>
               </View>
               {item.suggestions && item.suggestions.length > 0 && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing(2) }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing(2), gap: spacing(1) }}>
                   {item.suggestions.map((s) => (
-                    <Chip key={s.label} label={s.label} onPress={() => handleAction(s.action)} />
+                    <Pressable
+                      key={s.label}
+                      onPress={() => handleAction(s.action)}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: radius.pill,
+                        borderWidth: 1,
+                        borderColor: colors.line,
+                        backgroundColor: colors.bgElevated,
+                      }}
+                    >
+                      <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '500' }}>{s.label}</Text>
+                    </Pressable>
                   ))}
                 </View>
               )}
@@ -254,20 +305,10 @@ export default function ChatHome() {
           )}
           ListFooterComponent={
             <View>
-              {busy && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing(2) }} />}
-              {plan && msgs.length >= 2 && !crisis && (
-                <View style={{ marginTop: spacing(3), backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: spacing(3) }}>
-                  <Text style={{ fontWeight: '700', color: colors.text }}>{plan.headline}</Text>
-                  {plan.steps.map((s) => (
-                    <Text key={s} style={[font.small, { marginTop: 4 }]}>
-                      • {s}
-                    </Text>
-                  ))}
-                  {plan.skillId && (
-                    <Pressable onPress={() => router.push(`/skill/${plan.skillId}`)} style={{ marginTop: spacing(2) }}>
-                      <Text style={{ color: colors.primary, fontWeight: '600' }}>Thử kỹ năng gợi ý →</Text>
-                    </Pressable>
-                  )}
+              {busy && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2), marginTop: spacing(2) }}>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                  <Text style={font.small}>An đang đọc lại điều bạn vừa nói…</Text>
                 </View>
               )}
               {crisis && (
@@ -286,69 +327,78 @@ export default function ChatHome() {
           }
         />
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            padding: spacing(3),
-            gap: spacing(2),
-            backgroundColor: colors.bg,
-          }}
-        >
-          {canListen() && (
+        <View style={{ paddingHorizontal: spacing(3), paddingBottom: spacing(3), paddingTop: spacing(1) }}>
+          <View
+            style={[
+              {
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                backgroundColor: colors.card,
+                borderRadius: 28,
+                padding: 6,
+                borderWidth: 1,
+                borderColor: colors.line,
+                gap: 4,
+              },
+              shadowFloat,
+            ]}
+          >
+            {canListen() && (
+              <Pressable
+                onPress={toggleMic}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: listening ? colors.warn : colors.cardAlt,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: listening ? 10 : 8,
+                    height: listening ? 10 : 14,
+                    borderRadius: listening ? 2 : 8,
+                    backgroundColor: listening ? '#fff' : colors.primary,
+                  }}
+                />
+              </Pressable>
+            )}
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder={listening ? 'Đang nghe bạn…' : 'Nói với An'}
+              placeholderTextColor={colors.textFaint}
+              multiline
+              maxLength={2000}
+              style={{
+                flex: 1,
+                minHeight: 44,
+                maxHeight: 120,
+                paddingHorizontal: spacing(2),
+                paddingVertical: 11,
+                color: colors.ink,
+                fontSize: 16,
+                lineHeight: 22,
+              }}
+              onSubmitEditing={() => send(input)}
+            />
             <Pressable
-              onPress={toggleMic}
+              onPress={() => send(input)}
+              disabled={busy || !input.trim()}
               style={{
                 width: 44,
                 height: 44,
                 borderRadius: 22,
-                backgroundColor: listening ? colors.warn : colors.card,
+                backgroundColor: busy || !input.trim() ? colors.cardAlt : colors.primary,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
               }}
             >
-              <Text style={{ fontSize: 18 }}>{listening ? '⏹' : '🎤'}</Text>
+              <Text style={{ color: busy || !input.trim() ? colors.textFaint : '#F6F1E8', fontSize: 18, fontWeight: '600' }}>↑</Text>
             </Pressable>
-          )}
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder={listening ? 'Đang nghe bạn nói…' : 'Nói với An…'}
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={2000}
-            style={{
-              flex: 1,
-              minHeight: 44,
-              maxHeight: 120,
-              backgroundColor: colors.card,
-              borderRadius: 22,
-              paddingHorizontal: spacing(4),
-              paddingVertical: spacing(2),
-              color: colors.text,
-              fontSize: 16,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-            onSubmitEditing={() => send(input)}
-          />
-          <Pressable
-            onPress={() => send(input)}
-            disabled={busy || !input.trim()}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: busy || !input.trim() ? 0.45 : 1,
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>↑</Text>
-          </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
 

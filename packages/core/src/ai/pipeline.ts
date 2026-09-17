@@ -19,6 +19,7 @@ import {
 } from './scripts.ts';
 import type { ScriptedReply, SuggestedAction } from './scripts.ts';
 import { AN_SYSTEM_PROMPT, INTENT_PROMPT, PROMPT_VERSION } from './systemPrompt.ts';
+import { buildThreadState, continuityNote, stickAnalysis } from './thread.ts';
 
 /**
  * Pipeline 7 bước cho một lượt chat.
@@ -102,7 +103,7 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
     });
   }
 
-  const baseAnalysis = analyzeIntentByRules(input.text);
+  const baseAnalysis = stickAnalysis(analyzeIntentByRules(input.text), buildThreadState(input.history, input.text));
 
   if (risk.level === 'high') {
     const variant: CrisisCard['variant'] = risk.thirdParty
@@ -161,11 +162,14 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
     }
   }
 
+  const thread = buildThreadState(input.history, input.text);
+  analysis = stickAnalysis(analysis, thread);
+
   // [5] Chọn chiến lược: kịch bản là mặc định.
   let scripted: ScriptedReply | null = null;
   switch (analysis.intent) {
     case 'greeting':
-      scripted = scriptedGreeting(turnIndex);
+      scripted = thread.turnCount > 0 ? scriptedVenting(analysis, turnIndex, thread, input.text) : scriptedGreeting(turnIndex);
       break;
     case 'asking_symptoms':
       scripted = scriptedAskingSymptoms();
@@ -177,7 +181,7 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       scripted = scriptedAboutApp(input.text);
       break;
     case 'mood_checkin':
-      scripted = scriptedMoodCheckin(analysis);
+      scripted = thread.turnCount > 0 ? scriptedVenting(analysis, turnIndex, thread, input.text) : scriptedMoodCheckin(analysis);
       break;
     case 'seeking_technique':
       scripted = scriptedTechnique(analysis);
@@ -187,9 +191,8 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
   }
 
   if (scripted && !(input.preferLlmForVenting && llmAvailable && (analysis.intent === 'venting' || analysis.intent === 'unclear' || analysis.intent === 'mood_checkin'))) {
-    const text = withMemory(scripted.text, input.contextSummary, analysis.intent);
     return finish({
-      reply: text,
+      reply: scripted.text,
       suggestions: scripted.suggestions,
       usedLLM: false,
       strategy: 'script',
@@ -200,9 +203,11 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
   }
 
   if (!llmAvailable) {
-    const s = analysis.intent === 'unclear' ? scriptedUnclear() : scriptedVenting(analysis, turnIndex);
+    const s = analysis.intent === 'unclear' && thread.turnCount === 0
+      ? scriptedUnclear(thread)
+      : scriptedVenting(analysis, turnIndex, thread, input.text);
     return finish({
-      reply: withMemory(s.text, input.contextSummary, analysis.intent),
+      reply: s.text,
       suggestions: s.suggestions,
       usedLLM: false,
       strategy: 'script',
@@ -216,13 +221,17 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
   try {
     const messages: ChatMessage[] = [
       { role: 'system', content: AN_SYSTEM_PROMPT },
-      ...(input.contextSummary
-        ? [{ role: 'system' as const, content: `Ngữ cảnh (do hệ thống tóm tắt, không nhắc lại nguyên văn với người dùng): ${input.contextSummary}` }]
+      {
+        role: 'system',
+        content: continuityNote(thread, analysis),
+      },
+      ...(input.contextSummary && thread.turnCount === 0
+        ? [{ role: 'system' as const, content: `Ngữ cảnh dài hạn (không nhắc như đang theo dõi): ${input.contextSummary}` }]
         : []),
       {
         role: 'system',
-        content: `Phân tích tự động (tham khảo): cảm xúc=${analysis.emotion}, cường độ=${analysis.intensity}, chủ đề=${analysis.topics.join(',')}, lượt thứ=${turnIndex + 1}. ${
-          turnIndex >= 12 ? 'Đã trò chuyện khá lâu: nếu phù hợp, mời thử kỹ năng, ghi cảm xúc, hoặc nói với người thật — đừng cắt chuyện đột ngột.' : ''
+        content: `Lượt thứ ${turnIndex + 1}. ${
+          turnIndex >= 12 ? 'Đã trò chuyện khá lâu: nếu phù hợp, mời thử kỹ năng hoặc người thật — đừng cắt chuyện đột ngột, đừng hỏi lại.' : ''
         }`,
       },
       ...input.history.slice(-MAX_HISTORY),
@@ -252,21 +261,13 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnResult>
       : undefined;
     return finish({ reply: guard.text, suggestions, usedLLM: true, strategy: 'llm', risk, analysis, guardViolations: guard.violations });
   } catch {
-    const s = analysis.intent === 'unclear' ? scriptedUnclear() : scriptedVenting(analysis, turnIndex);
+    const s = analysis.intent === 'unclear' && thread.turnCount === 0
+      ? scriptedUnclear(thread)
+      : scriptedVenting(analysis, turnIndex, thread, input.text);
     return finish({ reply: s.text, suggestions: s.suggestions, usedLLM: false, strategy: 'llm_fallback_script', risk, analysis, guardViolations: [] });
   }
 
   function finish(partial: Omit<ChatTurnResult, 'promptVersion' | 'events' | 'latencyMs'>): ChatTurnResult {
     return { ...partial, promptVersion: PROMPT_VERSION, events, latencyMs: Date.now() - started };
   }
-}
-
-function withMemory(reply: string, summary: string | undefined, intent: IntentAnalysis['intent']): string {
-  if (!summary) return reply;
-  if (intent === 'crisis' || intent === 'asking_about_app' || intent === 'asking_symptoms') return reply;
-  const first = summary.split('.')[0]?.trim();
-  if (!first || first.length < 20) return reply;
-  if (intent === 'greeting') return `${reply} ${first}.`;
-  if (intent === 'venting' || intent === 'mood_checkin') return `${first}. ${reply}`;
-  return reply;
 }

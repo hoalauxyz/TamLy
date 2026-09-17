@@ -8,8 +8,19 @@ import { colors } from '../lib/theme';
 
 function PhoneShell({ children }: { children: ReactNode }) {
   return (
-    <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? '#E4D9C8' : colors.bg, alignItems: 'center' }}>
-      <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: colors.bg, overflow: 'hidden' }}>{children}</View>
+    <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? colors.canvas : colors.bg, alignItems: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 430,
+          backgroundColor: colors.bg,
+          overflow: 'hidden',
+          ...(Platform.OS === 'web' ? { boxShadow: '0 24px 80px rgba(26,23,20,0.12)' } : {}),
+        }}
+      >
+        {children}
+      </View>
     </View>
   );
 }
@@ -48,7 +59,8 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.text,
+          headerTintColor: colors.ink,
+          headerTitleStyle: { fontWeight: '500' },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.bg },
         }}

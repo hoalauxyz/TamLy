@@ -2,23 +2,27 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Body, Button, Card, Small, Title } from '../components/ui';
+import { AnMark } from '../components/Icons';
+import { Body, Button, Card, Small } from '../components/ui';
 import { api } from '../lib/api';
 import { setConsentLlm, setNickname, setOnboarded } from '../lib/store';
 import { colors, font, radius, spacing } from '../lib/theme';
 
 const SLIDES = [
   {
-    title: 'Bạn không phải đối mặt một mình',
-    body: 'Mở Lắng là mở An — kể như kể với một người bạn. Nhật ký, kỹ năng, nhóm và người hỗ trợ nằm trong menu khi bạn cần.',
+    kicker: '01',
+    title: 'Một chỗ để kể.',
+    body: 'Mở Lắng là gặp An. Nhật ký, kỹ năng, nhóm và người hỗ trợ nằm trong menu — khi bạn cần, không khi app muốn.',
   },
   {
-    title: 'Lắng không chẩn đoán, không điều trị',
-    body: 'Mọi kết quả trong app chỉ để tham khảo. An là AI, không phải người thật, và không thay được chuyên gia.',
+    kicker: '02',
+    title: 'Không chẩn đoán.',
+    body: 'An là AI. Kết quả trong app chỉ để tham khảo. Việc nặng hơn — gặp người thật.',
   },
   {
-    title: 'Dữ liệu của bạn, quyền của bạn',
-    body: 'Không cần tên thật. Nhật ký và hội thoại lưu trên máy bạn. Máy chủ không giữ nguyên văn chat — chỉ học mẫu cảm xúc/chủ đề. Bạn xóa được mọi thứ bất cứ lúc nào.',
+    kicker: '03',
+    title: 'Chuyện của bạn ở lại với bạn.',
+    body: 'Không cần tên thật. Hội thoại lưu trên máy. Máy chủ không giữ nguyên văn — chỉ học mẫu cảm xúc và chủ đề.',
   },
 ];
 
@@ -51,43 +55,45 @@ export default function Onboarding() {
       <ScrollView contentContainerStyle={{ padding: spacing(6), flexGrow: 1, justifyContent: 'center' }}>
         {!last ? (
           <View>
-            <View style={{ height: 160, borderRadius: radius.lg, backgroundColor: colors.primarySoft, marginBottom: spacing(6) }} />
-            <Title>{SLIDES[step]!.title}</Title>
+            <AnMark size={56} />
+            <Text style={[font.caption, { marginTop: spacing(8) }]}>{SLIDES[step]!.kicker}</Text>
+            <Text style={[font.display, { marginTop: spacing(3), fontSize: 34 }]}>{SLIDES[step]!.title}</Text>
             <Body>{SLIDES[step]!.body}</Body>
-            <View style={{ flexDirection: 'row', gap: 6, marginVertical: spacing(6) }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginVertical: spacing(8) }}>
               {SLIDES.map((_, i) => (
-                <View key={i} style={{ width: i === step ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: i === step ? colors.primary : colors.border }} />
+                <View key={i} style={{ width: i === step ? 22 : 6, height: 6, borderRadius: 3, backgroundColor: i === step ? colors.primary : colors.line }} />
               ))}
             </View>
             <Button title="Tiếp tục" onPress={() => setStep(step + 1)} />
           </View>
         ) : (
           <View>
-            <Title>Gọi bạn là gì nhé?</Title>
-            <Body muted>Một biệt danh là đủ. Không ai trong app thấy tên thật của bạn.</Body>
+            <Text style={font.caption}>Biệt danh</Text>
+            <Text style={[font.display, { marginTop: spacing(2), fontSize: 30 }]}>Gọi bạn là gì?</Text>
+            <Body muted>Một tên nhỏ là đủ. Không ai trong app thấy tên thật.</Body>
             <TextInput
               value={nick}
               onChangeText={setNick}
-              placeholder="ví dụ: Mèo Xanh"
-              placeholderTextColor={colors.textMuted}
+              placeholder="ví dụ: Mèo"
+              placeholderTextColor={colors.textFaint}
               maxLength={30}
               style={{
-                marginTop: spacing(4),
-                backgroundColor: '#fff',
+                marginTop: spacing(5),
+                backgroundColor: colors.card,
                 borderRadius: radius.md,
                 padding: spacing(4),
-                fontSize: 16,
+                fontSize: 18,
                 borderWidth: 1,
-                borderColor: colors.border,
-                color: colors.text,
+                borderColor: colors.line,
+                color: colors.ink,
               }}
             />
-            <Card style={{ marginTop: spacing(6) }}>
+            <Card style={{ marginTop: spacing(5) }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={[font.h2, { flex: 1 }]}>Cho phép An dùng AI để trả lời</Text>
+                <Text style={[font.h2, { flex: 1, paddingRight: spacing(3) }]}>An dùng AI để trả lời</Text>
                 <Switch value={consentLlm} onValueChange={setConsent} trackColor={{ true: colors.primary }} />
               </View>
-              <Small>An dùng AI để trả lời tự nhiên hơn. Tắt được trong Cài đặt.</Small>
+              <Small>Tắt được trong Cài đặt. Crisis vẫn chạy.</Small>
             </Card>
             <Button title="Bắt đầu" onPress={finish} disabled={busy || !ageOk} style={{ marginTop: spacing(4) }} />
             <Pressable
@@ -96,11 +102,11 @@ export default function Onboarding() {
             >
               <View
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 20,
+                  height: 20,
                   borderRadius: 6,
-                  borderWidth: 2,
-                  borderColor: ageOk ? colors.primary : colors.border,
+                  borderWidth: 1.5,
+                  borderColor: ageOk ? colors.primary : colors.line,
                   backgroundColor: ageOk ? colors.primary : 'transparent',
                   marginTop: 2,
                 }}

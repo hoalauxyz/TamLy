@@ -1,4 +1,5 @@
 import type { Emotion, IntentAnalysis, Topic } from '../types.ts';
+import { echoAnchor, pickFollowUp, topicLabel, type ThreadState } from './thread.ts';
 
 /**
  * Kịch bản trả lời KHÔNG cần LLM.
@@ -63,56 +64,76 @@ const REFLECTIONS: Record<Emotion, readonly string[]> = {
   neutral: ['Cảm ơn bạn đã chia sẻ với mình.', 'Mình đang nghe đây.'],
 };
 
-const OPEN_QUESTIONS: Record<Emotion, readonly string[]> = {
-  sad: ['Nếu phải chỉ vào một điều làm bạn buồn nhất lúc này, đó là gì?', 'Nỗi buồn này mới đến hay đã ở đó một thời gian rồi?'],
-  anxious: ['Điều bạn lo nhất là chuyện sắp xảy ra, hay là cảm giác không kiểm soát được?', 'Nếu cái lo này có hình dạng, nó trông như thế nào?'],
-  angry: ['Điều gì trong chuyện này làm bạn thấy bất công nhất?', 'Bạn muốn được nghe, hay muốn nghĩ cách xử lý?'],
-  tired: ['Nếu được nghỉ hoàn toàn 1 ngày không ai hỏi gì, bạn sẽ làm gì?', 'Bạn đã mệt kiểu này bao lâu rồi?'],
-  empty: ['Lần gần nhất bạn thấy "có cảm giác" là khi nào?', 'Cái trống này giống hết pin, hay giống không biết tiếp theo là gì?'],
-  lonely: ['Có ai mà bạn từng thấy thoải mái khi ở bên, dù giờ ít gặp không?', 'Bạn muốn được ai đó hiểu, hay chỉ cần ai đó ở đó?'],
-  overwhelmed: ['Trong tất cả những thứ đang đổ đến, cái nào thật sự phải xong hôm nay?', 'Nếu mình cùng bạn bỏ bớt một việc, bạn sẽ bỏ cái nào?'],
-  hopeful: ['Điều gì đã giúp bạn thấy nhẹ hơn?', 'Bạn muốn giữ lại điều đó bằng cách nào?'],
-  neutral: ['Hôm nay có gì đang ở trong đầu bạn?', 'Bạn muốn bắt đầu từ đâu?'],
-};
-
 const TOPIC_TOUCH: Partial<Record<Topic, string>> = {
   family: 'Chuyện gia đình luôn khó nói, vì mình vừa thương vừa mệt.',
-  study: 'Áp lực học hành ở mình thường không chỉ là điểm số, mà là kỳ vọng của cả nhà.',
-  work: 'Năm đầu đi làm hay giai đoạn tìm việc là lúc rất nhiều người trẻ thấy mình "không đủ".',
-  relationship: 'Chuyện tình cảm chạm vào chỗ mềm nhất của mình, nên đau là bình thường.',
-  future: 'Không biết mình đang đi đâu là cảm giác rất phổ biến ở tuổi này, dù ít ai nói ra.',
-  money: 'Lo tiền là một cái lo rất thật, không phải "chuyện nhỏ".',
-  social_media: 'Mạng xã hội cho mình thấy phiên bản tốt nhất của mọi người và phiên bản mệt nhất của mình.',
-  sleep: 'Ngủ kém kéo mọi thứ khác xuống theo — cảm xúc, tập trung, kiên nhẫn.',
-  body_image: 'Cách mình nhìn cơ thể mình thường khắt khe hơn cách bất kỳ ai nhìn.',
+  study: 'Áp lực học thường không chỉ là điểm số, mà là kỳ vọng quanh bạn.',
+  work: 'Năm đầu đi làm hay lúc tìm việc, nhiều người trẻ thấy mình “không đủ”.',
+  relationship: 'Chuyện tình cảm chạm vào chỗ mềm, nên đau là bình thường.',
+  future: 'Không biết mình đang đi đâu — cảm giác phổ biến ở tuổi này, dù ít ai nói ra.',
+  money: 'Lo tiền là một cái lo rất thật, không phải chuyện nhỏ.',
+  social_media: 'Mạng xã hội hay cho thấy phiên bản tốt nhất của người khác.',
+  sleep: 'Ngủ kém kéo cảm xúc và tập trung xuống theo.',
+  body_image: 'Cách mình nhìn cơ thể thường khắt khe hơn cách bất kỳ ai nhìn.',
 };
 
-export function scriptedVenting(analysis: IntentAnalysis, turnIndex: number): ScriptedReply {
-  const reflection = pick(REFLECTIONS[analysis.emotion], turnIndex);
-  const topic = analysis.topics.find((t) => TOPIC_TOUCH[t]);
-  const touch = topic ? ' ' + TOPIC_TOUCH[topic] : '';
-  const question = pick(OPEN_QUESTIONS[analysis.emotion], turnIndex + 1);
+export function scriptedVenting(
+  analysis: IntentAnalysis,
+  turnIndex: number,
+  thread?: ThreadState,
+  userText?: string,
+): ScriptedReply {
+  const topic = (analysis.topics.find((t) => t !== 'other') ?? thread?.stickyTopic) as Topic | undefined;
+  const anchor = (userText && echoAnchor(userText)) || thread?.anchors.at(-1);
+  const question = pickFollowUp(thread ?? emptyThread(turnIndex), topic, turnIndex + (userText?.length ?? 0));
 
-  // Sau nhiều lượt, mời bước tiếp — không cắt chuyện sớm.
+  let head: string;
+  if (thread?.answeringPrevious && anchor) {
+    head = `Bạn vừa nói “${trimQuote(anchor)}”.`;
+    if (topic && TOPIC_TOUCH[topic]) head += ` ${TOPIC_TOUCH[topic]}`;
+  } else if (anchor && turnIndex > 0) {
+    head = `Mình giữ “${trimQuote(anchor)}” — không bỏ qua chỗ đó.`;
+    if (topic) head += ` Vẫn quanh ${topicLabel(topic)}.`;
+  } else {
+    const reflection = pick(REFLECTIONS[analysis.emotion], turnIndex);
+    const touch = topic && TOPIC_TOUCH[topic] ? ` ${TOPIC_TOUCH[topic]}` : '';
+    head = `${reflection}${touch}`;
+    if (anchor) head += ` Bạn nói ${trimQuote(anchor).toLowerCase()}.`;
+  }
+
   if (turnIndex >= 10) {
     return {
-      text: `${reflection}${touch} Bạn đã nói ra được khá nhiều rồi — mình nghĩ đó không dễ. Bạn muốn thử một bài ngắn 2 phút để cơ thể dịu lại, hay muốn mình chỉ cách nói chuyện với một người thật?`,
+      text: `${head} Bạn đã nói ra được khá nhiều. Bạn muốn dịu cơ thể 2 phút, gặp người thật, hay kể tiếp đúng chuyện đang nói?`,
       suggestions: [
         { label: 'Thở 2 phút', action: { type: 'open_skill', skillId: 'breathing-478' } },
         { label: 'Nói với người thật', action: { type: 'open_human_support' } },
-        { label: 'Nói tiếp', action: { type: 'continue_chat' } },
+        { label: 'Kể tiếp', action: { type: 'continue_chat' } },
       ],
     };
   }
 
   return {
-    text: `${reflection}${touch} ${question} Mình ở đây.`,
+    text: `${head} ${question}`,
     suggestions: analysis.intensity === 'high'
       ? [
           { label: 'Mình muốn bình tĩnh lại', action: { type: 'open_skill', skillId: 'grounding-54321' } },
           { label: 'Kể tiếp', action: { type: 'continue_chat' } },
         ]
       : undefined,
+  };
+}
+
+function trimQuote(s: string): string {
+  return s.replace(/[.?!…]+$/g, '').slice(0, 72);
+}
+
+function emptyThread(turnCount: number): ThreadState {
+  return {
+    turnCount,
+    lastUserText: '',
+    lastAnText: '',
+    askedQuestions: [],
+    anchors: [],
+    answeringPrevious: false,
   };
 }
 
@@ -205,7 +226,12 @@ export function scriptedTechnique(analysis: IntentAnalysis): ScriptedReply {
   };
 }
 
-export function scriptedUnclear(): ScriptedReply {
+export function scriptedUnclear(thread?: ThreadState): ScriptedReply {
+  if (thread?.stickyTopic) {
+    return {
+      text: `Mình muốn hiểu đúng ${topicLabel(thread.stickyTopic)} bạn đang nói. Bạn kể thêm một chi tiết được không — chuyện gì vừa xảy ra, hoặc bạn đang thấy thế nào lúc này?`,
+    };
+  }
   return {
     text: 'Mình chưa chắc mình hiểu đúng ý bạn. Bạn có thể nói thêm một chút được không — chuyện gì đang xảy ra, hoặc bạn đang thấy thế nào?',
   };

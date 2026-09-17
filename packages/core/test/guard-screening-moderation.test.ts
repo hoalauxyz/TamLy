@@ -173,6 +173,7 @@ describe('chat pipeline', () => {
     assert.equal(r.usedLLM, false);
     assert.equal(r.strategy, 'script');
     assert.ok(r.reply.length > 20);
+    assert.match(r.reply, /học|bố mẹ|so sánh/i);
   });
 
   it('LLM output that diagnoses is replaced by safe fallback and logged', async () => {
@@ -195,6 +196,18 @@ describe('chat pipeline', () => {
     const r = await runChatTurn({ ...base, text: 'dạo này mình buồn không rõ lý do, chẳng muốn gặp ai', provider, llmDisabled: true });
     assert.equal(called, false);
     assert.equal(r.usedLLM, false);
+  });
+
+  it('stays on the previous topic and does not re-greet mid-thread', async () => {
+    const history = [
+      { role: 'user' as const, content: 'học mãi không vào, thi gần quá' },
+      { role: 'assistant' as const, content: 'Thi gần mà bài chưa vào thì dễ thấy mình đang chạy sau. Bạn đang kẹt ở môn nào nhất?' },
+    ];
+    const r = await runChatTurn({ ...base, history, text: 'toán, mình không hiểu bài' });
+    assert.equal(r.analysis.topics.includes('study'), true);
+    assert.match(r.reply, /toán|không hiểu|thi|học/i);
+    assert.doesNotMatch(r.reply, /^Chào bạn|^Hi\./);
+    assert.doesNotMatch(r.reply, /Check-in \d+ ngày/);
   });
 });
 
